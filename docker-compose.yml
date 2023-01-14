@@ -1,0 +1,14 @@
+version: "3"
+networks:
+  oddsapi:
+    external: true
+    driver: bridge
+services:
+  betcity_parser:
+    build: .
+    env_file: ./.env.prod
+    container_name: betcity_parser
+    environment:
+      TZ: Europe/Moscow
+    networks:
+      - oddsapi

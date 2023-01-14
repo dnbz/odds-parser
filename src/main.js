@@ -2,6 +2,7 @@
 import {PlaywrightCrawler, Dataset, createPlaywrightRouter, log, ProxyConfiguration} from 'crawlee';
 import {getRedisClient} from "./redis.js";
 import * as fs from "fs";
+import playwright from "playwright";
 
 log.setLevel(log.LEVELS.INFO)
 
@@ -20,10 +21,13 @@ router.addDefaultHandler(async ({request, page, enqueueLinks, log}) => {
         .click();
     await page.waitForTimeout(800);
 
+    // close the notify popup
+    await page.locator("css=div.push-confirm .push-confirm__button:first-of-type").click()
+
     // Extract links from the current page
     // and add them to the crawling queue.
     await enqueueLinks({
-        selector: "div.champs__sport a.champs__champ-name", label: "DETAIL", limit: 1,
+        selector: ".champs-container__item:first-of-type .champs__sport a.champs__champ-name", label: "DETAIL"
     });
 })
 
@@ -34,6 +38,30 @@ const parseMatchData = async (match, date) => {
 
     let time = await match.locator("css=.line-event__time-static").textContent()
 
+    let odds = {
+        home_team: null,
+        away_team: null,
+        draw: null,
+    };
+
+    try {
+        odds =  {
+            home_team: await match
+                .locator("css=.line-event__main-bets button:nth-child(1)")
+                .textContent(),
+            draw: await match
+                .locator("css=.line-event__main-bets button:nth-child(2)")
+                .textContent(),
+            away_team: await match
+                .locator("css=.line-event__main-bets button:nth-child(3)")
+                .textContent()
+        }
+    } catch (error) {
+        if (error instanceof playwright.errors.TimeoutError) {
+            console.log(`Caught timeout on odds. No odds for this event`)
+        }
+    }
+
     let match_data = {
         event_url: `https://betcity.ru${event_url_path}`,
         datetime: date + time,
@@ -43,15 +71,7 @@ const parseMatchData = async (match, date) => {
         away_team_name: await match
             .locator("css=.line-event__name-teams b:last-child")
             .textContent(),
-        home_team: await match
-            .locator("css=.line-event__main-bets button:nth-child(1)")
-            .textContent(),
-        draw: await match
-            .locator("css=.line-event__main-bets button:nth-child(2)")
-            .textContent(),
-        away_team: await match
-            .locator("css=.line-event__main-bets button:nth-child(3)")
-            .textContent()
+        ...odds
     };
 
     return match_data
@@ -90,14 +110,16 @@ const processMatchData = (match, date) => {
 }
 
 router.addHandler("DETAIL", async ({request, page, log}) => {
+    const title = await page.title()
+    console.log(`Parsing page ${title}`)
     let results = [];
 
-    const time_delims = page.locator("css=.line-champ__date")
-    await time_delims.first().waitFor({state: "visible", timeout: 2500});
+    const time_delims = page.locator("css=.line__champ .line-champ__date")
+    await time_delims.first().waitFor({state: "visible", timeout: 10000});
     let parent = await time_delims.first().locator("xpath=..")
 
     const count = await time_delims.count();
-    console.log(`There are ${count} dates on page`);
+    // console.log(`There are ${count} dates on page`);
 
     for (let i = 0; i < count; i++) {
         let time_delim = time_delims.nth(i)
@@ -109,7 +131,7 @@ router.addHandler("DETAIL", async ({request, page, log}) => {
         let matches = parent.locator(`xpath=./app-line-event-unit[count(preceding-sibling::div[@class='line-champ__date'])=${xpath_delim_count}]`)
 
         const match_count = await matches.count();
-        console.log(`There are ${match_count} matches on date ${date}`);
+        // console.log(`There are ${match_count} matches on date ${date}`);
 
         for (let j = 0; j < match_count; j++) {
 
@@ -120,7 +142,7 @@ router.addHandler("DETAIL", async ({request, page, log}) => {
             match_data.event_list_url = request.url
 
             await redis.rPush('betcity', JSON.stringify(match_data))
-            console.log(match_data)
+            // console.log(match_data)
 
             results.push(match_data)
         }
@@ -145,11 +167,11 @@ const getProxyList = () => {
     return proxies
 }
 
-let proxies = getProxyList()
-
 const proxyConfiguration = new ProxyConfiguration({
-    proxyUrls: proxies
+    proxyUrls: getProxyList()
 });
+
+// let headless = process.env.APP_ENV === 'prod';
 
 // PlaywrightCrawler crawls the web using a headless
 // browser controlled by the Playwright library.
@@ -159,9 +181,8 @@ const crawler = new PlaywrightCrawler({
     browserPoolOptions: {
         useFingerprints: false,
     }, // Uncomment this option to see the browser window.
-    headless: false,
-    maxConcurrency: 10,
-    maxRequestsPerMinute: 240
+    maxConcurrency: 3,
+    maxRequestsPerMinute: 120
 })
 
 const urls = ["https://betcity.ru/ru/line/soccer"];
