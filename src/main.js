@@ -1,5 +1,13 @@
 // For more information, see https://crawlee.dev/
-import {PlaywrightCrawler, Dataset, createPlaywrightRouter, log, ProxyConfiguration} from 'crawlee';
+import {
+    PlaywrightCrawler,
+    Dataset,
+    createPlaywrightRouter,
+    log,
+    ProxyConfiguration,
+    LogLevel,
+    RequestQueue
+} from 'crawlee';
 import {getRedisClient} from "./redis.js";
 import * as fs from "fs";
 import playwright from "playwright";
@@ -24,10 +32,28 @@ router.addDefaultHandler(async ({request, page, enqueueLinks, log}) => {
     // close the notify popup
     await page.locator("css=div.push-confirm .push-confirm__button:first-of-type").click()
 
-    // Extract links from the current page
-    // and add them to the crawling queue.
+
+    // const eventLineLocator = page.locator("css=.champs-container__item:first-of-type .champs__sport a.champs__champ-name")
+    // const count = await eventLineLocator.count();
+    //
+    // const queue = await RequestQueue.open();
+    // const baseUrl = await page.evaluate(() => document.location.origin)
+    //
+    // for (let i = 0; i < count; i++) {
+    //     let eventLine = eventLineLocator.nth(i)
+    //     let eventLineText = await eventLine.innerText()
+    //
+    //     if (eventLineText.includes("Statistics")) {
+    //         // console.log("Event name contains words 'Statistics'. Skipping...")
+    //         continue
+    //     }
+    //
+    //     let url = await eventLine.getAttribute('href')
+    //     await queue.addRequest({url: baseUrl + url, label: "DETAIL"})
+    // }
+
     await enqueueLinks({
-        selector: ".champs-container__item:first-of-type .champs__sport a.champs__champ-name", label: "DETAIL"
+        selector: ".champs-container__item:first-of-type a.champs__champ-name", label: "DETAIL"
     });
 })
 
@@ -45,7 +71,7 @@ const parseMatchData = async (match, date) => {
     };
 
     try {
-        odds =  {
+        odds = {
             home_team: await match
                 .locator("css=.line-event__main-bets button:nth-child(1)")
                 .textContent(),
@@ -111,6 +137,14 @@ const processMatchData = (match, date) => {
 
 router.addHandler("DETAIL", async ({request, page, log}) => {
     const title = await page.title()
+    const stopWords = ["Statisctics", "Statistics"]
+    for (let stopWord of stopWords) {
+        if (title.includes(stopWord)) {
+            console.log("Event name contains words 'Statistics'. Skipping...")
+            return
+        }
+    }
+
     console.log(`Parsing page ${title}`)
     let results = [];
 
