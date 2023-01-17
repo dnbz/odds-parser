@@ -1,9 +1,6 @@
-# Getting started with Crawlee
+# Betcity parser
+`docker-compose` is used to deploy this project.
 
-This example uses `PlaywrightCrawler` to recursively crawl https://crawlee.dev using the browser automation library [Playwright](https://playwright.dev).
+Before that you need to copy `./.env.prod` with correct setup.
 
-You can find more examples and documentation at the following links:
-
-- [Step-by-step tutorial](https://crawlee.dev/docs/introduction) for Crawlee
-- `PlaywrightCrawler` [API documentation](https://crawlee.dev/api/playwright-crawler/class/PlaywrightCrawler)
-- Other [examples](https://crawlee.dev/docs/examples/playwright-crawler)
+And also fill the file `./proxies.txt` with proxies that'll be used for parsing
