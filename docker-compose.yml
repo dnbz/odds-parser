@@ -12,3 +12,12 @@ services:
       TZ: Europe/Moscow
     networks:
       - oddsapi
+  fonbet_parser:
+    build: .
+    env_file: ./.env.prod
+    container_name: fonbet_parser
+    entrypoint: ./entrypoint-fonbet.sh
+    environment:
+      TZ: Europe/Moscow
+    networks:
+      - oddsapi
