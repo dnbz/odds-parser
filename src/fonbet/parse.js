@@ -1,16 +1,14 @@
-import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
-import { getRedisClient } from "./redis.js";
 import playwright from "playwright";
-import { proxyConfiguration } from "./proxies.js";
+import { processMatchData } from "./transform.js";
+import { log } from "crawlee";
 
-log.setLevel(log.LEVELS.INFO);
-
-let redis = await getRedisClient();
-await redis.connect();
-
-export const router = createPlaywrightRouter();
-
-router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
+export const defaultHandler = async ({
+  request,
+  page,
+  enqueueLinks,
+  log,
+  crawler,
+}) => {
   await page.waitForLoadState("networkidle", { timeout: 50000 });
   log.info("Page loaded.");
 
@@ -27,69 +25,12 @@ router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
   });
   await page.waitForTimeout(8000);
 
-  await parseCompetitions(page);
+  await parseCompetitions(page, crawler.redis);
 
   await page.waitForTimeout(15000);
-  // await enqueueLinks({
-  //   selector: ".champs-container__item:first-of-type a.champs__champ-name",
-  //   label: "DETAIL",
-  // });
-});
+};
 
-router.addHandler("DETAIL", async ({ request, page, log }) => {
-  const title = await page.title();
-  const stopWords = ["Statisctics", "Statistics"];
-  for (let stopWord of stopWords) {
-    if (title.includes(stopWord)) {
-      console.log("Event name contains words 'Statistics'. Skipping...");
-      return;
-    }
-  }
-
-  console.log(`Parsing page ${title}`);
-  let results = [];
-
-  const time_delims = page.locator("css=.line__champ .line-champ__date");
-  await time_delims.first().waitFor({ state: "visible", timeout: 10000 });
-
-  const count = await time_delims.count();
-  // console.log(`There are ${count} dates on page`);
-  const parent = page.locator(
-    "xpath=//div[contains(@class, 'sport-section-virtual-list--')]"
-  );
-
-  for (let i = 0; i < count; i++) {
-    let time_delim = time_delims.nth(i);
-    let date = await time_delim.innerText();
-
-    // xpath count are 1-based
-    let xpath_delim_count = i + 1;
-
-    let matches = parent.locator(
-      `xpath=./app-line-event-unit[count(preceding-sibling::div[@class='line-champ__date'])=${xpath_delim_count}]`
-    );
-
-    const match_count = await matches.count();
-    // console.log(`There are ${match_count} matches on date ${date}`);
-
-    for (let j = 0; j < match_count; j++) {
-      let match = matches.nth(j);
-
-      let match_data = await parseMatchData(match, date);
-      match_data = processMatchData(match_data);
-      match_data.event_list_url = request.url;
-
-      await redis.rPush("fonbet", JSON.stringify(match_data));
-      // console.log(match_data)
-
-      results.push(match_data);
-    }
-  }
-
-  return results;
-});
-
-const parseCompetitions = async (page) => {
+const parseCompetitions = async (page, redis) => {
   const parent = page.locator(
     "xpath=//div[contains(@class, 'sport-section-virtual-list--')]"
   );
@@ -118,7 +59,7 @@ const parseCompetitions = async (page) => {
     } else if (/U\d\d/.test(competitionName)) {
       log.info("Competition is a youth league , skipping.");
     } else {
-      await parseEvents(events);
+      await parseEvents(events, redis);
     }
 
     try {
@@ -142,8 +83,7 @@ const parseCompetitions = async (page) => {
     }
   }
 };
-
-const parseEvents = async (events) => {
+const parseEvents = async (events, redis) => {
   const event_count = await events.count();
   for (let j = 0; j < event_count; j++) {
     let event = events.nth(j);
@@ -164,7 +104,6 @@ const parseEvents = async (events) => {
     await redis.rPush("fonbet", JSON.stringify(matchData));
   }
 };
-
 const parseMatchData = async (match) => {
   const matchNameElem = match.locator(
     "xpath=.//a[contains(@class, 'sport-event__name--')]"
@@ -212,51 +151,3 @@ const parseMatchData = async (match) => {
 
   return match_data;
 };
-
-const processMatchData = (match, date) => {
-  const mapping = {
-    away_team_name: (s) => {
-      return s.trim();
-    },
-    home_team_name: (s) => {
-      return s.trim();
-    },
-    datetime: (s) => {
-      return s.trim();
-    },
-    away_team: (s) => {
-      return Number(s);
-    },
-    draw: (s) => {
-      return Number(s);
-    },
-    home_team: (s) => {
-      return Number(s);
-    },
-  };
-
-  for (const [key, value] of Object.entries(match)) {
-    if (key in mapping) {
-      let func = mapping[key];
-      match[key] = func(value);
-    }
-  }
-
-  return match;
-};
-
-const crawler = new PlaywrightCrawler({
-  requestHandler: router,
-  launchContext: { launchOptions: { timezoneId: "Europe/London" } },
-  proxyConfiguration: proxyConfiguration,
-  browserPoolOptions: {
-    useFingerprints: false,
-  }, // Uncomment this option to see the browser window.
-  maxConcurrency: 3,
-  requestHandlerTimeoutSecs: 360,
-  maxRequestsPerMinute: 120,
-});
-
-const urls = ["https://www.fon.bet/sports/football/?mode=1"];
-await crawler.run(urls);
-await redis.disconnect();

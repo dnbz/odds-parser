@@ -1,19 +1,7 @@
-// For more information, see https://crawlee.dev/
-import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
 import playwright from "playwright";
-import {getRedisClient} from "./redis.js";
-import {proxyConfiguration} from "./proxies.js";
+import { processMatchData } from "./transform.js";
 
-log.setLevel(log.LEVELS.INFO);
-
-const router = createPlaywrightRouter();
-
-let redis = await getRedisClient();
-await redis.connect();
-
-
-router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
-  log.warning("test etst ");
+export const defaultHandler = async ({ page, enqueueLinks }) => {
   const langSwitcher = page.locator("css=app-language-switcher");
   await langSwitcher.waitFor({ state: "visible", timeout: 3500 });
 
@@ -35,8 +23,9 @@ router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
     selector: ".champs-container__item:first-of-type a.champs__champ-name",
     label: "DETAIL",
   });
-});
-router.addHandler("DETAIL", async ({ request, page, log }) => {
+};
+
+export const parseDetail = async ({ request, page, log, crawler }) => {
   const title = await page.title();
   const stopWords = ["Statisctics", "Statistics"];
   for (let stopWord of stopWords) {
@@ -87,7 +76,7 @@ router.addHandler("DETAIL", async ({ request, page, log }) => {
       match_data = processMatchData(match_data);
       match_data.event_list_url = request.url;
 
-      await redis.rPush("betcity", JSON.stringify(match_data));
+      await crawler.redis.rPush("betcity", JSON.stringify(match_data));
       // console.log(match_data)
 
       results.push(match_data);
@@ -95,7 +84,7 @@ router.addHandler("DETAIL", async ({ request, page, log }) => {
   }
 
   return results;
-});
+};
 
 const parseMatchData = async (match, date) => {
   let event_url_path = await match
@@ -142,49 +131,3 @@ const parseMatchData = async (match, date) => {
 
   return match_data;
 };
-
-const processMatchData = (match, date) => {
-  const mapping = {
-    away_team_name: (s) => {
-      return s.trim();
-    },
-    home_team_name: (s) => {
-      return s.trim();
-    },
-    datetime: (s) => {
-      return s.trim();
-    },
-    away_team: (s) => {
-      return Number(s);
-    },
-    draw: (s) => {
-      return Number(s);
-    },
-    home_team: (s) => {
-      return Number(s);
-    },
-  };
-
-  for (const [key, value] of Object.entries(match)) {
-    if (key in mapping) {
-      let func = mapping[key];
-      match[key] = func(value);
-    }
-  }
-
-  return match;
-};
-
-const crawler = new PlaywrightCrawler({
-  requestHandler: router,
-  proxyConfiguration: proxyConfiguration,
-  browserPoolOptions: {
-    useFingerprints: false,
-  }, // Uncomment this option to see the browser window.
-  maxConcurrency: 3,
-  maxRequestsPerMinute: 120,
-});
-
-const urls = ["https://betcity.ru/ru/line/soccer"];
-await crawler.run(urls);
-await redis.disconnect();
