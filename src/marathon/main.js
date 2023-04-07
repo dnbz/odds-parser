@@ -13,17 +13,28 @@ const MarathonParser = class {
 
     router.addDefaultHandler(defaultHandler);
 
-    this.crawler = new PlaywrightCrawler({
+    /** @type {PlaywrightCrawlerOptions} */
+    const options = {
       requestHandler: router,
       launchContext: { launchOptions: { timezoneId: "Europe/London" } },
       // proxyConfiguration: proxyConfiguration,
       browserPoolOptions: {
         useFingerprints: false,
-      }, // Uncomment this option to see the browser window.
+      },
       maxConcurrency: 3,
       requestHandlerTimeoutSecs: 360,
       maxRequestsPerMinute: 120,
-    });
+    };
+
+    if (process.env.APP_ENV === "prod") {
+      options.proxyConfiguration = proxyConfiguration;
+
+      // options.launchOptions = {
+      //   headless: false,
+      // };
+    }
+
+    this.crawler = new PlaywrightCrawler(options);
 
     this.crawler.redis = getRedisClient();
   }
