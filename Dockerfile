@@ -24,6 +24,8 @@ USER root
 RUN apt install ./cronn_v0.4.0_linux_amd64.deb && rm -f cronn_v0.4.0_linux_amd64.deb
 USER myuser
 
+RUN npx playwright install
+
 # Next, copy the remaining files and directories with the source code.
 # Since we do this after NPM install, quick build will be really fast
 # for most source file changes.
