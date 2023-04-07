@@ -14,15 +14,25 @@ const PinnacleParser = class {
     router.addDefaultHandler(defaultHandler);
     router.addHandler("DETAIL", parseDetail);
 
-    this.crawler = new PlaywrightCrawler({
+    /** @type {PlaywrightCrawlerOptions} */
+    const options = {
       requestHandler: router,
-      // proxyConfiguration: proxyConfiguration,
       browserPoolOptions: {
         useFingerprints: false,
       }, // Uncomment this option to see the browser window.
       maxConcurrency: 3,
       maxRequestsPerMinute: 120,
-    });
+    };
+
+    if (process.env.APP_ENV === "prod") {
+      options.proxyConfiguration = proxyConfiguration;
+
+      // options.launchOptions = {
+      //   headless: false,
+      // };
+    }
+
+    this.crawler = new PlaywrightCrawler(options);
 
     this.crawler.redis = getRedisClient();
   }
