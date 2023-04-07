@@ -32,4 +32,5 @@ COPY --chown=myuser . ./
 
 # Run the image.
 #CMD npm start --silent
-ENTRYPOINT ["./entrypoint.sh"]
+# empty entrypoint to be overriden by docker-compose
+ENTRYPOINT []

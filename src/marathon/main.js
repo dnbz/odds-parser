@@ -1,39 +1,30 @@
 import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
 import { getRedisClient } from "../redis.js";
-import { defaultHandler, parseDetail } from "./parse.js";
+import { defaultHandler } from "./parse.js";
 import { proxyConfiguration } from "../proxies.js";
 
 log.setLevel(log.LEVELS.INFO);
 
-const BetcityParser = class {
-  urls = ["https://betcity.ru/ru/line/soccer"];
+const MarathonParser = class {
+  urls = ["https://www.marathonbet.com/en/popular/Football"];
 
   constructor() {
     let router = createPlaywrightRouter();
 
     router.addDefaultHandler(defaultHandler);
-    router.addHandler("DETAIL", parseDetail);
 
-    /** @type {PlaywrightCrawlerOptions} */
-    const options = {
+    this.crawler = new PlaywrightCrawler({
       requestHandler: router,
+      launchContext: { launchOptions: { timezoneId: "Europe/London" } },
       // proxyConfiguration: proxyConfiguration,
       browserPoolOptions: {
         useFingerprints: false,
-      },
+      }, // Uncomment this option to see the browser window.
       maxConcurrency: 3,
+      requestHandlerTimeoutSecs: 360,
       maxRequestsPerMinute: 120,
-    };
+    });
 
-    if (process.env.APP_ENV === "prod") {
-      options.proxyConfiguration = proxyConfiguration;
-
-      // options.launchOptions = {
-      //   headless: false,
-      // };
-    }
-
-    this.crawler = new PlaywrightCrawler(options);
     this.crawler.redis = getRedisClient();
   }
 
@@ -44,5 +35,5 @@ const BetcityParser = class {
   }
 };
 
-const parser = new BetcityParser();
+const parser = new MarathonParser();
 await parser.start();

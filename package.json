@@ -13,6 +13,8 @@
         "start": "node src/betcity/main.js",
         "betcity": "node src/betcity/main.js",
         "fonbet": "node src/fonbet/main.js",
+        "marathon": "node src/marathon/main.js",
+        "pinnacle": "node src/pinnacle/main.js",
         "test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1"
     },
     "author": "It's not you it's me",
