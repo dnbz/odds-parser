@@ -1,11 +1,10 @@
 import fs from "fs";
 import { ProxyConfiguration } from "crawlee";
 
-export const getProxyList = () => {
+export const getProxyList = (filename = "./proxies.txt") => {
   let data;
   try {
-    data = fs.readFileSync("./proxies.txt", "utf8");
-    console.log(data);
+    data = fs.readFileSync(filename, "utf8");
   } catch (err) {
     console.error(err);
     return;
@@ -17,4 +16,8 @@ export const getProxyList = () => {
 };
 export const proxyConfiguration = new ProxyConfiguration({
   proxyUrls: getProxyList(),
+});
+
+export const pinnacleProxyConfiguration = new ProxyConfiguration({
+  proxyUrls: getProxyList("./proxies-pinnacle.txt"),
 });

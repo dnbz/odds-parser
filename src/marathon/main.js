@@ -1,7 +1,7 @@
 import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
 import { getRedisClient } from "../redis.js";
 import { defaultHandler } from "./parse.js";
-import { proxyConfiguration } from "../proxies.js";
+import {pinnacleProxyConfiguration, proxyConfiguration} from "../proxies.js";
 
 log.setLevel(log.LEVELS.INFO);
 
@@ -27,6 +27,7 @@ const MarathonParser = class {
     };
 
     if (process.env.APP_ENV === "prod") {
+      console.log("Using proxy configuration: ", proxyConfiguration.proxyUrls)
       options.proxyConfiguration = proxyConfiguration;
 
       // options.launchOptions = {

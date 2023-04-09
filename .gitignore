@@ -8,4 +8,4 @@ crawlee_storage
 storage
 
 .env
-proxies.txt
+proxies*.txt

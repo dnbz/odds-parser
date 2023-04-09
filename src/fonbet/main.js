@@ -27,6 +27,7 @@ const FonbetParser = class {
     };
 
     if (process.env.APP_ENV === "prod") {
+      console.log("Using proxy configuration: ", proxyConfiguration.proxyUrls)
       options.proxyConfiguration = proxyConfiguration;
 
       // options.launchOptions = {
