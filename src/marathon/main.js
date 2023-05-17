@@ -27,8 +27,8 @@ const MarathonParser = class {
     };
 
     if (process.env.APP_ENV === "prod") {
-      console.log("Using proxy configuration: ", proxyConfiguration.proxyUrls)
-      options.proxyConfiguration = proxyConfiguration;
+      console.log("Using proxy configuration: ", pinnacleProxyConfiguration.proxyUrls)
+      options.proxyConfiguration = pinnacleProxyConfiguration;
 
       // options.launchOptions = {
       //   headless: false,
