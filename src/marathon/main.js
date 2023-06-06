@@ -21,9 +21,9 @@ const MarathonParser = class {
       browserPoolOptions: {
         useFingerprints: false,
       },
-      maxConcurrency: 3,
+      maxConcurrency: 5,
       requestHandlerTimeoutSecs: 360,
-      maxRequestsPerMinute: 120,
+      maxRequestsPerMinute: 240,
     };
 
     if (process.env.APP_ENV === "prod") {

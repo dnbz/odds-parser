@@ -21,8 +21,8 @@ const BetcityParser = class {
       browserPoolOptions: {
         useFingerprints: false,
       },
-      maxConcurrency: 3,
-      maxRequestsPerMinute: 120,
+      maxConcurrency: 5,
+      maxRequestsPerMinute: 240,
     };
 
     if (process.env.APP_ENV === "prod") {

@@ -21,9 +21,9 @@ const FonbetParser = class {
       browserPoolOptions: {
         useFingerprints: false,
       }, // Uncomment this option to see the browser window.
-      maxConcurrency: 3,
+      maxConcurrency: 5,
       requestHandlerTimeoutSecs: 360,
-      maxRequestsPerMinute: 120,
+      maxRequestsPerMinute: 240,
     };
 
     if (process.env.APP_ENV === "prod") {
