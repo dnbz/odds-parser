@@ -1,6 +1,6 @@
 import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
 import { getRedisClient } from "../redis.js";
-import { defaultHandler, parseDetail } from "./parse.js";
+import { defaultHandler, parseEvent, parseLeague } from "./parse.js";
 import { proxyConfiguration } from "../proxies.js";
 
 log.setLevel(log.LEVELS.INFO);
@@ -12,26 +12,23 @@ const BetcityParser = class {
     let router = createPlaywrightRouter();
 
     router.addDefaultHandler(defaultHandler);
-    router.addHandler("DETAIL", parseDetail);
+    router.addHandler("LEAGUE", parseLeague);
+    router.addHandler("EVENT", parseEvent);
 
     /** @type {PlaywrightCrawlerOptions} */
     const options = {
       requestHandler: router,
-      // proxyConfiguration: proxyConfiguration,
       browserPoolOptions: {
         useFingerprints: false,
       },
       maxConcurrency: 3,
       maxRequestsPerMinute: 120,
+      maxRequestsPerCrawl: 10,
     };
 
     if (process.env.APP_ENV === "prod") {
-      console.log("Using proxy configuration: ", proxyConfiguration.proxyUrls)
+      console.log("Using proxy configuration: ", proxyConfiguration.proxyUrls);
       options.proxyConfiguration = proxyConfiguration;
-
-      // options.launchOptions = {
-      //   headless: false,
-      // };
     }
 
     this.crawler = new PlaywrightCrawler(options);

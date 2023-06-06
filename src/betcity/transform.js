@@ -1,4 +1,4 @@
-export const processMatchData = (match, date) => {
+export const processMatchData = (match) => {
     const mapping = {
         away_team_name: (s) => {
             return s.trim();
