@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cronn --log.enabled -c "05 * * * * npm run marathon"
+cronn --log.enabled -c "*/15 * * * * npm run marathon"
