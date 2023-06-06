@@ -8,4 +8,5 @@ crawlee_storage
 storage
 
 .env
+.env.*
 proxies*.txt
