@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cronn --log.enabled -c "20 * * * * npm run pinnacle"
+cronn --log.enabled -c "*/15 * * * * npm run pinnacle"
