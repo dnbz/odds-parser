@@ -110,11 +110,11 @@ export async function parseOutcomeOdds(page) {
   let outcomeItem = page.locator("css=.line-event__main-bets");
 
   let data = {
-    home_win: await outcomeItem
+    home_team: await outcomeItem
       .locator("css=button:nth-of-type(1)")
       .textContent(),
     draw: await outcomeItem.locator("css=button:nth-of-type(2)").textContent(),
-    away_win: await outcomeItem
+    away_team: await outcomeItem
       .locator("css=button:nth-of-type(3)")
       .textContent(),
   };
@@ -139,13 +139,13 @@ export async function parseFirstHalfOutcomeOdds(page) {
   );
 
   let data = {
-    home_win: await outcomeItem
+    home_team: await outcomeItem
       .locator("css=.dops-item-row__block:nth-of-type(1) button")
       .textContent(),
     draw: await outcomeItem
       .locator("css=.dops-item-row__block:nth-of-type(2) button")
       .textContent(),
-    away_win: await outcomeItem
+    away_team: await outcomeItem
       .locator("css=.dops-item-row__block:nth-of-type(3) button")
       .textContent(),
   };
