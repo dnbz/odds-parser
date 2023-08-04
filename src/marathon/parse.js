@@ -1,6 +1,15 @@
 import playwright from "playwright";
 import { processMatchData } from "./transform.js";
 import { log } from "crawlee";
+import {
+  parseOutcomeOdds,
+  parseTotalOdds,
+  findOddsItemByName,
+  parseHandicapOdds,
+  parseFirstHalfOutcomeOdds,
+} from "./betparse.js";
+
+const baseUrl = "https://marathonbet.com";
 
 export const defaultHandler = async ({
   request,
@@ -18,10 +27,10 @@ export const defaultHandler = async ({
     height: 9000,
   });
 
-  await parseCompetitions(page, crawler.redis);
+  await parseCompetitions(page, crawler.redis, crawler);
 };
 
-const parseCompetitions = async (page, redis) => {
+const parseCompetitions = async (page, redis, crawler) => {
   let competitions, competitionCount;
   let currentCompetition = 0;
   while (true) {
@@ -66,72 +75,74 @@ const parseCompetitions = async (page, redis) => {
       const event_count = await events.count();
       console.log(`There are ${event_count} events in ${competitionName}`);
 
-      await parseEvents(events, redis);
+      for (let j = 0; j < event_count; j++) {
+        let event = events.nth(j);
+
+        let url = await event
+          .locator("css=.member-link")
+          .first()
+          .getAttribute("href");
+
+        let request = {
+          url: `${baseUrl}${url}`,
+          label: "EVENT",
+        };
+
+        await crawler.addRequests([request]);
+        await crawler.waitForAllRequestsToBeAdded;
+      }
     }
   }
 };
 
-const parseEvents = async (events, redis) => {
-  const event_count = await events.count();
-  for (let j = 0; j < event_count; j++) {
-    let event = events.nth(j);
+export const parseEvent = async ({ crawler, page, log }) => {
+  // const visibilityBeacon = page.locator("css=.selection-link");
+  let visibilityBeacon = await findOddsItemByName(page, "  Result ");
+  visibilityBeacon = visibilityBeacon.first();
 
-    let matchData = await parseMatchData(event);
-    matchData = processMatchData(matchData);
-    log.info("Match data: ", matchData);
-    await redis.rPush("marathon", JSON.stringify(matchData));
-  }
+  await visibilityBeacon.waitFor({ state: "visible", timeout: 8000 });
+
+  let eventData = await parseMatchDataFromDetail(page);
+
+  let processedData = processMatchData(eventData);
+
+  await crawler.redis.rPush("marathon", JSON.stringify(processedData));
+  log.info("Event data:", processedData);
+
+  return eventData;
 };
 
-const parseMatchData = async (match) => {
-  const matchNameElem = match.locator(
-    "xpath=.//a[contains(@class, 'sport-event__name--')]"
-  );
-
-  const matchInfo = match.locator(
-      // xpath table that contains class member-area-content-table
-      "xpath=.//table[contains(@class, 'member-area-content-table')]"
-    // "xpath=.//table[@class='member-area-content-table']"
+const parseMatchDataFromDetail = async (page) => {
+  const matchInfo = page.locator(
+    "xpath=//table[contains(@class, 'member-area-content-table')]"
   );
 
   const homeTeam = matchInfo.locator("xpath=.//a[@class='member-link']").nth(0);
   const awayTeam = matchInfo.locator("xpath=.//a[@class='member-link']").nth(1);
 
-  const event_url_path = await homeTeam.getAttribute("href");
-
   const date = await matchInfo
     .locator("xpath=.//td[contains(@class, 'date')]")
     .textContent();
 
-  let odds = {
-    home_team: null,
-    away_team: null,
-    draw: null,
-  };
+  const outcomeOdds = await parseOutcomeOdds(page);
+  const totalOdds = await parseTotalOdds(page);
+  const handicapOdds = await parseHandicapOdds(page);
+  const firstHalfOutcomeOdds = await parseFirstHalfOutcomeOdds(page);
 
-  const oddsElems = match.locator("xpath=.//td[contains(@class, 'price')]");
-  try {
-    odds = {
-      home_team: await oddsElems.nth(0).textContent(),
-      draw: await oddsElems.nth(1).textContent(),
-      away_team: await oddsElems.nth(2).textContent(),
-    };
-  } catch (error) {
-    if (error instanceof playwright.errors.TimeoutError) {
-      console.log(`Caught timeout on odds. No odds for this event`);
-    }
-  }
-
-  let homeTeamName = await homeTeam.textContent()
-  let awayTeamName = await awayTeam.textContent()
-  let match_data = {
-    event_url: `https://marathonbet.com${event_url_path}`,
+  let homeTeamName = await homeTeam.textContent();
+  let awayTeamName = await awayTeam.textContent();
+  let matchData = {
+    event_url: page.url(),
     home_team_name: homeTeamName,
     away_team_name: awayTeamName,
     name: `${homeTeamName} - ${awayTeamName}`,
     datetime: date,
-    ...odds,
+
+    outcome_odds: outcomeOdds,
+    first_half_outcome_odds: firstHalfOutcomeOdds,
+    total_odds: totalOdds,
+    handicap_odds: handicapOdds,
   };
 
-  return match_data;
+  return matchData;
 };

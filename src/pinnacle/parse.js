@@ -1,18 +1,26 @@
 import playwright from "playwright";
 import { processMatchData } from "./transform.js";
+import {
+  findOddsItemByName,
+  parseFirstHalfOutcomeOdds,
+  parseHandicapOdds,
+  parseOutcomeOdds,
+  parseTotalOdds,
+} from "./betparse.js";
+
+const baseUrl = "https://pinnacle.com";
 
 export const defaultHandler = async ({ page, enqueueLinks }) => {
   await page.waitForTimeout(1200);
 
   await enqueueLinks({
-    // this is pretty bad
     selector:
       "[data-test-id='Browse-Leagues'] .contentBlock:last-of-type li > div > a:first-of-type",
-    label: "DETAIL",
+    label: "LEAGUE",
   });
 };
 
-export const parseDetail = async ({ request, page, log, crawler }) => {
+export const parseLeague = async ({ request, page, log, crawler }) => {
   let title;
   try {
     title = await page
@@ -55,8 +63,6 @@ export const parseDetail = async ({ request, page, log, crawler }) => {
     );
   }
 
-  let results = [];
-
   const time_delims = page.locator(
     "xpath=//div[@data-test-id='Events.DateBar']"
   );
@@ -81,57 +87,82 @@ export const parseDetail = async ({ request, page, log, crawler }) => {
     for (let j = 0; j < match_count; j++) {
       let match = matches.nth(j);
 
-      let match_data = await parseMatchData(match, date);
-      match_data = processMatchData(match_data);
-      match_data.event_list_url = request.url;
+      let url = await match.locator("css=a").first().getAttribute("href");
 
-      await crawler.redis.rPush("pinnacle", JSON.stringify(match_data));
+      let request = {
+        url: `${baseUrl}${url}`,
+        label: "EVENT",
+      };
 
-      results.push(match_data);
+      await crawler.addRequests([request], { forefront: true });
+      await crawler.waitForAllRequestsToBeAdded;
     }
   }
 
-  return results;
+  // return results;
 };
 
-const parseMatchData = async (match, date) => {
-  let event_url_path = await match
-    .locator("css=a")
-    .first()
-    .getAttribute("href");
-
-  let time = await match
-    .locator("xpath=.//div[contains(@class, 'style_matchupDate')]")
-    .textContent();
-
-  let odds = {
-    home_team: null,
-    away_team: null,
-    draw: null,
-  };
-
-  const oddsElems = match.locator(
-    "xpath=.//span[contains(@class, 'style_price')]"
-  );
-  try {
-    odds = {
-      home_team: await oddsElems.nth(0).textContent(),
-      draw: await oddsElems.nth(1).textContent(),
-      away_team: await oddsElems.nth(2).textContent(),
-    };
-  } catch (error) {
-    if (error instanceof playwright.errors.TimeoutError) {
-      console.log(`Caught timeout on odds. No odds for this event`);
-    }
+export const parseEvent = async ({ crawler, page, log }) => {
+  // check if there are any matches
+  let noMatches = await page.locator("css=.noEvents").first().isVisible();
+  if (noMatches) {
+    log.info(`Competition has no matches, skipping.`);
+    return;
   }
 
-  const teamNames = match.locator("css=.event-row-participant");
+  let visibilityBeacon = await findOddsItemByName(page, "Money Line – Match");
+  visibilityBeacon = visibilityBeacon.first();
+  await visibilityBeacon.waitFor({ state: "visible", timeout: 8500 });
+
+  let eventData = await parseMatchDataFromDetail(page);
+  let processedData = processMatchData(eventData);
+
+  await crawler.redis.rPush("pinnacle", JSON.stringify(processedData));
+  log.info("Event data:", processedData);
+
+  return eventData;
+};
+
+const parseMatchDataFromDetail = async (page, date) => {
+  let time = await page
+    .locator("xpath=//div[contains(@class, 'style_startTime')]")
+    .textContent();
+
+  const homeTeam = page
+    .locator(
+      "xpath=//div[@data-test-id = 'Matchup Header']//div[contains(@class, 'style_participantName')]"
+    )
+    .nth(0);
+  const awayTeam = page
+    .locator(
+      "xpath=//div[@data-test-id = 'Matchup Header']//div[contains(@class, 'style_participantName')]"
+    )
+    .nth(1);
+  const homeTeamName = await homeTeam.textContent();
+  const awayTeamName = await awayTeam.textContent();
+
+  const outcomeOdds = await parseOutcomeOdds(page);
+  const firstHalfOutcomeOdds = await parseFirstHalfOutcomeOdds(page);
+  const totalOdds = await parseTotalOdds(page);
+  const handicapOdds = await parseHandicapOdds(page);
+
+  const oddsElems = page.locator(
+    "xpath=.//span[contains(@class, 'style_price')]"
+  );
+
+  const teamNames = page.locator("css=.event-row-participant");
+
   let match_data = {
-    event_url: `https://www.pinnacle.com${event_url_path}`,
-    datetime: date + ' ' + time,
-    home_team_name: await teamNames.nth(0).textContent(),
-    away_team_name: await teamNames.nth(1).textContent(),
-    ...odds,
+    event_url: page.url(),
+    home_team_name: homeTeamName,
+    away_team_name: awayTeamName,
+    name: `${homeTeamName} - ${awayTeamName}`,
+    datetime: time,
+
+    outcome_odds: outcomeOdds,
+    first_half_outcome_odds: firstHalfOutcomeOdds,
+    total_odds: totalOdds,
+    handicap_odds: handicapOdds,
   };
 
   return match_data;

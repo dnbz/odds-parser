@@ -1,6 +1,6 @@
 import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
 import { getRedisClient } from "../redis.js";
-import { defaultHandler, parseDetail } from "./parse.js";
+import { defaultHandler, parseLeague, parseEvent } from "./parse.js";
 import { pinnacleProxyConfiguration } from "../proxies.js";
 
 log.setLevel(log.LEVELS.INFO);
@@ -12,7 +12,8 @@ const PinnacleParser = class {
     let router = createPlaywrightRouter();
 
     router.addDefaultHandler(defaultHandler);
-    router.addHandler("DETAIL", parseDetail);
+    router.addHandler("LEAGUE", parseLeague);
+    router.addHandler("EVENT", parseEvent);
 
     /** @type {PlaywrightCrawlerOptions} */
     const options = {

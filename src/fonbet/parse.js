@@ -1,6 +1,15 @@
 import playwright from "playwright";
 import { processMatchData } from "./transform.js";
+import {
+  findOddsItemByName,
+  parseFirstHalfOutcomeOdds,
+  parseHandicapOdds,
+  parseOutcomeOdds,
+  parseTotalOdds,
+} from "./betparse.js";
 import { log } from "crawlee";
+
+const baseUrl = "https://fon.bet";
 
 export const defaultHandler = async ({
   request,
@@ -12,9 +21,7 @@ export const defaultHandler = async ({
   await page.waitForLoadState("networkidle", { timeout: 50000 });
   log.info("Page loaded.");
 
-  const langSwitcher = page.locator("css=.js-header-languages");
-  await langSwitcher.locator("css=.header__link").click();
-  await langSwitcher.getByText("English").click();
+  await switchLang(page, 10000);
   await page.waitForTimeout(1000);
   // await page.zoom(0.1)
 
@@ -25,12 +32,18 @@ export const defaultHandler = async ({
   });
   await page.waitForTimeout(8000);
 
-  await parseCompetitions(page, crawler.redis);
+  await parseCompetitions(page, crawler.redis, crawler);
 
   await page.waitForTimeout(15000);
 };
 
-const parseCompetitions = async (page, redis) => {
+const switchLang = async (page, timeout) => {
+  const langSwitcher = page.locator("css=.js-header-languages");
+  await langSwitcher.locator("css=.header__link").click({ timeout: timeout });
+  await langSwitcher.getByText("English").click({ timeout: timeout });
+};
+
+const parseCompetitions = async (page, redis, crawler) => {
   const parent = page.locator(
     "xpath=//div[contains(@class, 'sport-section-virtual-list--')]"
   );
@@ -59,7 +72,28 @@ const parseCompetitions = async (page, redis) => {
     } else if (/U\d\d/.test(competitionName)) {
       log.info("Competition is a youth league , skipping.");
     } else {
-      await parseEvents(events, redis);
+      for (let j = 0; j < event_count; j++) {
+        let event = events.nth(j);
+        // exclude events without names(usually not matches)
+        try {
+          const eventNameElem = event.locator(
+            "xpath=.//a[contains(@class, 'sport-event__name--')]"
+          );
+          await eventNameElem.waitFor({ state: "visible", timeout: 200 });
+        } catch (error) {
+          log.info("Event name not visible, skipping.");
+          continue;
+        }
+        let url = await event.locator("css=a").first().getAttribute("href");
+
+        let request = {
+          url: `${baseUrl}${url}`,
+          label: "EVENT",
+        };
+
+        await crawler.addRequests([request], { forefront: false });
+        await crawler.waitForAllRequestsToBeAdded;
+      }
     }
 
     try {
@@ -83,71 +117,84 @@ const parseCompetitions = async (page, redis) => {
     }
   }
 };
-const parseEvents = async (events, redis) => {
-  const event_count = await events.count();
-  for (let j = 0; j < event_count; j++) {
-    let event = events.nth(j);
-    // exclude events without names(usually not matches)
-    try {
-      const eventNameElem = event.locator(
-        "xpath=.//a[contains(@class, 'sport-event__name--')]"
-      );
-      await eventNameElem.waitFor({ state: "visible", timeout: 200 });
-    } catch (error) {
-      log.info("Event name not visible, skipping.");
-      continue;
-    }
 
-    let matchData = await parseMatchData(event);
-    matchData = processMatchData(matchData);
-    log.info("Match data: ", matchData);
-    await redis.rPush("fonbet", JSON.stringify(matchData));
+export const parseEvent = async ({ crawler, page, log }) => {
+  let visibilityBeacon = await findOddsItemByName(page, "Result");
+  visibilityBeacon = visibilityBeacon.first();
+
+  try {
+    await visibilityBeacon.waitFor({ state: "visible", timeout: 8000 });
+  } catch (error) {
+    // if the beacon is not visible,
+    // switch language and wait for it to appear
+    // since language after timeout failure when the new browser window is opened
+    await switchLang(page, 7000);
+    // bigger timeout to throttle
+    await page.waitForTimeout(3000);
+    await visibilityBeacon.waitFor({ state: "visible", timeout: 8000 });
   }
+
+  let eventData = await parseMatchDataFromDetail(page);
+
+  let processedData = processMatchData(eventData);
+
+  await crawler.redis.rPush("fonbet", JSON.stringify(processedData));
+  log.info("Event data:", processedData);
+
+  return eventData;
 };
-const parseMatchData = async (match) => {
-  const matchNameElem = match.locator(
-    "xpath=.//a[contains(@class, 'sport-event__name--')]"
-  );
 
-  const event_url_path = await matchNameElem.getAttribute("href");
-  const matchName = await matchNameElem.textContent();
-  const teams = matchName.split(" — ");
-
-  const date = await match
-    .locator(
-      "xpath=.//span[contains(@class, 'event-block-planned-time__time-')]"
-    )
+const parseMatchDataFromDetail = async (page) => {
+  let date = await page
+    .locator("xpath=//*[contains(@class, 'ev-line-time__day')]")
+    .textContent();
+  let time = await page
+    .locator("xpath=//*[contains(@class, 'ev-line-time__time')]")
     .textContent();
 
-  let odds = {
-    home_team: null,
-    away_team: null,
-    draw: null,
-  };
+  const homeTeam = page
+    .locator("xpath=//div[contains(@class, 'ev-team-')]//span")
+    .nth(0);
+  const awayTeam = page
+    .locator("xpath=//div[contains(@class, 'ev-team-')]//span")
+    .nth(1);
+  const homeTeamName = await homeTeam.textContent();
+  const awayTeamName = await awayTeam.textContent();
 
-  const oddsElems = match.locator(
-    "xpath=.//div[contains(@class, 'table-component-factor-value_single--')]"
-  );
-  try {
-    odds = {
-      home_team: await oddsElems.nth(0).textContent(),
-      draw: await oddsElems.nth(1).textContent(),
-      away_team: await oddsElems.nth(2).textContent(),
-    };
-  } catch (error) {
-    if (error instanceof playwright.errors.TimeoutError) {
-      console.log(`Caught timeout on odds. No odds for this event`);
-    }
-  }
+  const outcomeOdds = await parseOutcomeOdds(page);
+  const totalOdds = await parseTotalOdds(page);
+  const handicapOdds = await parseHandicapOdds(page);
+
+  await switchTab(page, "1st half");
+  const firstHalfOutcomeOdds = await parseFirstHalfOutcomeOdds(page);
 
   let match_data = {
-    event_url: `https://fon.bet${event_url_path}`,
-    home_team_name: teams[0],
-    away_team_name: teams[1],
-    name: matchName,
-    datetime: date,
-    ...odds,
+    event_url: page.url(),
+    home_team_name: homeTeamName,
+    away_team_name: awayTeamName,
+    name: `${homeTeamName} - ${awayTeamName}`,
+    datetime: date + " " + time,
+
+    outcome_odds: outcomeOdds,
+    first_half_outcome_odds: firstHalfOutcomeOdds,
+    total_odds: totalOdds,
+    handicap_odds: handicapOdds,
   };
 
   return match_data;
+};
+
+const switchTab = async (page, tabName) => {
+  const firstHalfTab = await page.locator(
+    `xpath=//div[contains(text(), '${tabName}') and contains(@class, 'tab')]`
+  );
+
+  try {
+    await firstHalfTab.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info(`Tab ${tabName} not visible, skipping.`);
+    return;
+  }
+
+  await firstHalfTab.click();
 };

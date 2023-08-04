@@ -1,8 +1,7 @@
 import { createPlaywrightRouter, log, PlaywrightCrawler } from "crawlee";
 import { getRedisClient } from "../redis.js";
-import { defaultHandler } from "./parse.js";
+import { defaultHandler, parseEvent } from "./parse.js";
 import { proxyConfiguration } from "../proxies.js";
-import {parseMatchDetail} from "../betcity/parse.js";
 
 log.setLevel(log.LEVELS.INFO);
 
@@ -13,7 +12,7 @@ const FonbetParser = class {
     let router = createPlaywrightRouter();
 
     router.addDefaultHandler(defaultHandler);
-    router.addHandler('DETAIL', parseMatchDetail)
+    router.addHandler('EVENT', parseEvent)
 
     /** @type {PlaywrightCrawlerOptions} */
     const options = {

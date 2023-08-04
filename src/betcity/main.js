@@ -23,7 +23,6 @@ const BetcityParser = class {
       },
       maxConcurrency: 3,
       maxRequestsPerMinute: 120,
-      maxRequestsPerCrawl: 10,
     };
 
     if (process.env.APP_ENV === "prod") {
