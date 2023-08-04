@@ -172,7 +172,6 @@ const parseMatchDataFromDetail = async (page) => {
     event_url: page.url(),
     home_team_name: homeTeamName,
     away_team_name: awayTeamName,
-    name: `${homeTeamName} - ${awayTeamName}`,
     datetime: date + " " + time,
 
     outcome_odds: outcomeOdds,
