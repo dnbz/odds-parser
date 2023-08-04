@@ -1,8 +1,4 @@
 version: "3"
-networks:
-  oddsapi:
-    external: true
-    driver: bridge
 
 services:
   betcity_parser:
@@ -10,37 +6,41 @@ services:
     env_file: ./.env.prod
     container_name: betcity_parser
     entrypoint: ./entrypoints/betcity.sh
+    volumes:
+      - ./proxies.txt:/app/proxies.txt
+      - ./proxies-pinnacle.txt:/app/proxies-pinnacle.txt
     environment:
       TZ: Europe/Moscow
-    networks:
-      - oddsapi
 
   fonbet_parser:
     build: .
     env_file: ./.env.prod
     container_name: fonbet_parser
     entrypoint: ./entrypoints/fonbet.sh
+    volumes:
+      - ./proxies.txt:/app/proxies.txt
+      - ./proxies-pinnacle.txt:/app/proxies-pinnacle.txt
     environment:
       TZ: Europe/Moscow
-    networks:
-      - oddsapi
 
   marathon_parser:
     build: .
     env_file: ./.env.prod
     container_name: marathon_parser
     entrypoint: ./entrypoints/marathon.sh
+    volumes:
+      - ./proxies.txt:/app/proxies.txt
+      - ./proxies-pinnacle.txt:/app/proxies-pinnacle.txt
     environment:
       TZ: Europe/Moscow
-    networks:
-      - oddsapi
 
   pinnacle_parser:
     build: .
     env_file: ./.env.prod
     container_name: pinnacle_parser
     entrypoint: ./entrypoints/pinnacle.sh
+    volumes:
+      - ./proxies.txt:/app/proxies.txt
+      - ./proxies-pinnacle.txt:/app/proxies-pinnacle.txt
     environment:
       TZ: Europe/Moscow
-    networks:
-      - oddsapi
