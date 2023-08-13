@@ -71,7 +71,7 @@ export async function parseHandicapOdds(page) {
     return [];
   }
 
-  let homeHandicapData = [];
+  let data = [];
 
   const homeHandicapBets = betItem.locator(
     "xpath=.//tr/td[contains(@class, 'price') and .//*[@class='coeff-value']][1]"
@@ -90,13 +90,12 @@ export async function parseHandicapOdds(page) {
       .locator("xpath=.//div[@class='coeff-price']")
       .textContent();
 
-    homeHandicapData.push({
+    data.push({
       handicap: betLabel,
       coef: coefValue,
+      type: "home",
     });
   }
-
-  let awayHandicapData = [];
 
   const awayHandicapBets = betItem.locator(
     "xpath=.//tr/td[contains(@class, 'price') and .//*[@class='coeff-value']][2]"
@@ -115,13 +114,14 @@ export async function parseHandicapOdds(page) {
       .locator("xpath=.//div[@class='coeff-price']")
       .textContent();
 
-    awayHandicapData.push({
+    data.push({
       handicap: betLabel,
       coef: coefValue,
+      type: "away",
     });
   }
 
-  return { home: homeHandicapData, away: awayHandicapData };
+  return data;
 }
 
 export async function parseOutcomeOdds(page) {

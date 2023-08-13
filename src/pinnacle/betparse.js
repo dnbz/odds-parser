@@ -78,7 +78,7 @@ export async function parseHandicapOdds(page) {
   const seeMoreButton = betItem.locator("xpath=.//span[text()='See more']");
   await seeMoreButton.click();
 
-  let homeHandicapData = [];
+  let data = [];
 
   const homeHandicapBets = betItem.locator(
     "xpath=.//div[contains(@class, 'style_buttonRow')]/div[1]/button"
@@ -95,13 +95,12 @@ export async function parseHandicapOdds(page) {
       .locator("xpath=.//span[contains(@class, 'style_price')]")
       .textContent();
 
-    homeHandicapData.push({
+    data.push({
       handicap: betLabel,
       coef: coefValue,
+      type: "home",
     });
   }
-
-  let awayHandicapData = [];
 
   const awayHandicapBets = betItem.locator(
     "xpath=.//div[contains(@class, 'style_buttonRow')]/div[2]/button"
@@ -118,13 +117,14 @@ export async function parseHandicapOdds(page) {
       .locator("xpath=.//span[contains(@class, 'style_price')]")
       .textContent();
 
-    awayHandicapData.push({
+    data.push({
       handicap: betLabel,
       coef: coefValue,
+      type: "away",
     });
   }
 
-  return { home: homeHandicapData, away: awayHandicapData };
+  return data;
 }
 
 export async function parseFirstHalfOutcomeOdds(page) {

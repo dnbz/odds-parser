@@ -81,8 +81,6 @@ export async function parseHandicapOdds(page) {
 
   let data = [];
 
-  let homeHandicapData = [];
-
   const homeHandicapBets = betItem.locator(
     "xpath=.//div[contains(@class, 'body')]/div[1]//div[contains(@class, 'row-common')]"
   );
@@ -102,13 +100,12 @@ export async function parseHandicapOdds(page) {
       .locator("xpath=.//div[contains(@class, 'factor-td')]")
       .textContent();
 
-    homeHandicapData.push({
+    data.push({
       handicap: betLabel,
       coef: coefValue,
+      type: "home"
     });
   }
-
-  let awayHandicapData = [];
 
   const awayHandicapBets = betItem.locator(
     "xpath=.//div[contains(@class, 'body')]/div[2]//div[contains(@class, 'row-common')]"
@@ -129,13 +126,14 @@ export async function parseHandicapOdds(page) {
       .locator("xpath=.//div[contains(@class, 'factor-td')]")
       .textContent();
 
-    awayHandicapData.push({
+    data.push({
       handicap: betLabel,
       coef: coefValue,
+      type: "away"
     });
   }
 
-  return { home: homeHandicapData, away: awayHandicapData };
+  return data;
 }
 
 export async function parseFirstHalfOutcomeOdds(page) {

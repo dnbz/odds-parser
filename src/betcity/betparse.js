@@ -79,7 +79,7 @@ export async function parseHandicapOdds(page) {
     "xpath=.//div[contains(@class, 'dops-item-row__section')]//div[contains(@class, 'dops-item-row__block-content')]"
   );
 
-  let data = { home: [], away: [] };
+  let data = [];
   const count = await bets.count();
   for (let i = 0; i < count; ++i) {
     let bet = bets.nth(i);
@@ -94,13 +94,17 @@ export async function parseHandicapOdds(page) {
     // parse inside the () to get the handicap value
     let handicap = handicapString.match(/\(([^)]+)\)/)[1];
 
+    let type;
     if (handicapString.includes("Han1"))
-      data.home.push({
-        handicap: handicap,
-        coef: value,
-      });
+      type = "home"
     else if (handicapString.includes("Han2"))
-      data.away.push({ handicap: handicap, coef: value });
+      type = "away"
+
+    data.push({
+      handicap: handicap,
+      coef: value,
+      type: type,
+    });
   }
 
   return data;
