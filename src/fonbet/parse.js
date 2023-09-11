@@ -2,9 +2,12 @@ import playwright from "playwright";
 import { processMatchData } from "./transform.js";
 import {
   findOddsItemByName,
+  parseFirstHalfHandicapOdds,
   parseFirstHalfOutcomeOdds,
+  parseFirstHalfTotalOdds,
   parseHandicapOdds,
   parseOutcomeOdds,
+  parseSecondHalfOutcomeOdds,
   parseTotalOdds,
 } from "./betparse.js";
 import { log } from "crawlee";
@@ -167,6 +170,10 @@ const parseMatchDataFromDetail = async (page) => {
 
   await switchTab(page, "1st half");
   const firstHalfOutcomeOdds = await parseFirstHalfOutcomeOdds(page);
+  const firstHalfTotalOdds = await parseFirstHalfTotalOdds(page);
+  const firstHalfHandicapOdds = await parseFirstHalfHandicapOdds(page);
+  await switchTab(page, "2nd half");
+  const secondHalfOutcomeOdds = await parseSecondHalfOutcomeOdds(page);
 
   let match_data = {
     event_url: page.url(),
@@ -176,7 +183,10 @@ const parseMatchDataFromDetail = async (page) => {
 
     outcome_odds: outcomeOdds,
     first_half_outcome_odds: firstHalfOutcomeOdds,
+    second_half_outcome_odds: secondHalfOutcomeOdds,
     total_odds: totalOdds,
+    first_half_total_odds: firstHalfTotalOdds,
+    first_half_handicap_odds: firstHalfHandicapOdds,
     handicap_odds: handicapOdds,
   };
 

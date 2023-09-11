@@ -20,6 +20,33 @@ export async function parseTotalOdds(page) {
     return [];
   }
 
+  const totalOdds = await parseTotalsData(totalItem);
+
+  return totalOdds;
+}
+
+export async function parseFirstHalfTotalOdds(page) {
+  // spaces have to be there to not clash with other bets that have "Total Goals" in their name
+  let totalItem = await findOddsItemByName(
+    page,
+    " Total Goals - 1st Half       "
+  );
+  totalItem = totalItem.first();
+
+  // the data is still there even though it's not visible on the main tab
+  try {
+    await totalItem.waitFor({ state: "attached", timeout: 300 });
+  } catch (e) {
+    log.info("First half Total odds not found");
+    return [];
+  }
+
+  const totalOdds = await parseTotalsData(totalItem);
+
+  return totalOdds;
+}
+
+async function parseTotalsData(totalItem) {
   const totalBets = totalItem.locator(
     "xpath=.//td[contains(@class, 'price') and .//*[@class='coeff-value']]"
   );
@@ -59,6 +86,22 @@ export async function parseTotalOdds(page) {
   return totalOdds;
 }
 
+export async function parseFirstHalfHandicapOdds(page) {
+  let betItem = await findOddsItemByName(page, "To Win 1st Half With Handicap");
+  betItem = betItem.first();
+
+  // the data is still there even though it's not visible on the main tab
+  try {
+    await betItem.waitFor({ state: "attached", timeout: 300 });
+  } catch (e) {
+    log.info("Handicap odds not found");
+    return [];
+  }
+
+  const data = await parseHandicapsData(betItem);
+  return data;
+}
+
 export async function parseHandicapOdds(page) {
   let betItem = await findOddsItemByName(page, "To Win Match With Handicap");
   betItem = betItem.first();
@@ -71,6 +114,11 @@ export async function parseHandicapOdds(page) {
     return [];
   }
 
+  const data = await parseHandicapsData(betItem);
+  return data;
+}
+
+async function parseHandicapsData(betItem) {
   let data = [];
 
   const homeHandicapBets = betItem.locator(
@@ -120,7 +168,6 @@ export async function parseHandicapOdds(page) {
       type: "away",
     });
   }
-
   return data;
 }
 
@@ -158,28 +205,40 @@ export async function parseFirstHalfOutcomeOdds(page) {
     return [];
   }
 
+  const data = await parseHalfOutcomesData(betItem);
+  return data;
+}
+
+export async function parseSecondHalfOutcomeOdds(page) {
+  // spaces are needed
+  let betItem = await findOddsItemByName(page, "2nd Half Result  ");
+  betItem = betItem.first();
+
+  // the data is still there even though it's not visible on the main tab
+  try {
+    await betItem.waitFor({ state: "attached", timeout: 300 });
+  } catch (e) {
+    log.info("Second half outcome odds not found");
+    return [];
+  }
+
+  const data = await parseHalfOutcomesData(betItem);
+  return data;
+}
+
+async function parseHalfOutcomesData(betItem) {
   const oddsElems = betItem.locator(
     "xpath=.//td[contains(@class, 'price')]//span"
   );
-  let data = {
-    home_team: await oddsElems.nth(0).textContent(),
-    draw: await oddsElems.nth(1).textContent(),
-    away_team: await oddsElems.nth(2).textContent(),
-  };
-  return data
 
-  // let data;
-  // try {
-  //   data = {
-  //     home_team: await oddsElems.nth(0).textContent(),
-  //     draw: await oddsElems.nth(1).textContent(),
-  //     away_team: await oddsElems.nth(2).textContent(),
-  //   };
-  // } catch (error) {
-  //   if (error instanceof playwright.errors.TimeoutError) {
-  //     console.log(`Caught timeout on first half outcome odds. No odds for this event`);
-  //   }
-  // }
-  //
-  // return data;
+  let data;
+  try {
+    data = {
+      home_team: await oddsElems.nth(0).textContent({ timeout: 100 }),
+      draw: await oddsElems.nth(1).textContent({ timeout: 100 }),
+      away_team: await oddsElems.nth(2).textContent({ timeout: 100 }),
+    };
+  } catch (error) {}
+
+  return data;
 }

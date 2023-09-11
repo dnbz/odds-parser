@@ -25,6 +25,35 @@ export async function parseTotalOdds(page) {
   const seeMoreButton = totalItem.locator("xpath=.//span[text()='See more']");
   await seeMoreButton.click();
 
+  return parseTotalsData(totalItem);
+}
+
+export async function parseFirstHalfTotalOdds(page) {
+  // spaces have to be there to not clash with other bets that have "Total Goals" in their name
+  let totalItem = await findOddsItemByName(page, "Total – 1st Half");
+  // take the first
+  totalItem = await totalItem.first();
+
+  try {
+    await totalItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("First Half Total odds not found");
+    return [];
+  }
+
+  await totalItem.click();
+
+  const seeMoreButton = totalItem.locator("xpath=.//span[text()='See more']");
+  try {
+    await seeMoreButton.click({ timeout: 100 });
+  } catch (e) {
+    log.info("See more button not found for first half totals");
+  }
+
+  return parseTotalsData(totalItem);
+}
+
+export async function parseTotalsData(totalItem) {
   let totalOdds = {};
 
   const totalBets = totalItem.locator("css=.market-btn");
@@ -78,6 +107,31 @@ export async function parseHandicapOdds(page) {
   const seeMoreButton = betItem.locator("xpath=.//span[text()='See more']");
   await seeMoreButton.click();
 
+  return parseHandicapsData(betItem);
+}
+
+export async function parseFirstHalfHandicapOdds(page) {
+  // spaces have to be there to not clash with other bets that have "Total Goals" in their name
+  let betItem = await findOddsItemByName(page, "Handicap – 1st Half");
+  // take the first
+  betItem = await betItem.first();
+
+  try {
+    await betItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("Handicap odds not found");
+    return [];
+  }
+
+  await betItem.click();
+
+  const seeMoreButton = betItem.locator("xpath=.//span[text()='See more']");
+  await seeMoreButton.click();
+
+  return parseHandicapsData(betItem);
+}
+
+export async function parseHandicapsData(betItem) {
   let data = [];
 
   const homeHandicapBets = betItem.locator(
@@ -140,26 +194,27 @@ export async function parseFirstHalfOutcomeOdds(page) {
     return [];
   }
 
-  const oddsElems = oddsSection.locator(
-    "xpath=//button//span[contains(@class, 'style_price')]"
-  );
+  await oddsSection.click();
+
+  return parseOutcomes(oddsSection);
+}
+
+export async function parseSecondHalfOutcomeOdds(page) {
+  let oddsSection = await findOddsItemByName(page, "Money Line – 2nd Half");
+  oddsSection = oddsSection.first();
+
+  try {
+    await oddsSection.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    console.log(
+        `Caught timeout on odds. No 2nd half outcome odds for this event`
+    );
+    return [];
+  }
 
   await oddsSection.click();
 
-  let data;
-  try {
-    data = {
-      home_team: await oddsElems.nth(0).textContent(),
-      draw: await oddsElems.nth(1).textContent(),
-      away_team: await oddsElems.nth(2).textContent(),
-    };
-  } catch (error) {
-    if (error instanceof playwright.errors.TimeoutError) {
-      console.log(`Caught timeout on odds. No odds for this event`);
-    }
-  }
-
-  return data;
+  return parseOutcomes(oddsSection);
 }
 
 export async function parseOutcomeOdds(page) {
@@ -173,6 +228,10 @@ export async function parseOutcomeOdds(page) {
     return [];
   }
 
+  return parseOutcomes(oddsSection);
+}
+
+async function parseOutcomes(oddsSection) {
   const oddsElems = oddsSection.locator(
     "xpath=//button//span[contains(@class, 'style_price')]"
   );

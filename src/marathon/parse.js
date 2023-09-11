@@ -7,6 +7,9 @@ import {
   findOddsItemByName,
   parseHandicapOdds,
   parseFirstHalfOutcomeOdds,
+  parseSecondHalfOutcomeOdds,
+  parseFirstHalfTotalOdds,
+  parseFirstHalfHandicapOdds,
 } from "./betparse.js";
 
 const baseUrl = "https://marathonbet.com";
@@ -126,8 +129,11 @@ const parseMatchDataFromDetail = async (page) => {
 
   const outcomeOdds = await parseOutcomeOdds(page);
   const totalOdds = await parseTotalOdds(page);
+  const firstHalfTotalOdds = await parseFirstHalfTotalOdds(page);
   const handicapOdds = await parseHandicapOdds(page);
+  const firstHalfHandicapOdds = await parseFirstHalfHandicapOdds(page);
   const firstHalfOutcomeOdds = await parseFirstHalfOutcomeOdds(page);
+  const secondHalfOutcomeOdds = await parseSecondHalfOutcomeOdds(page);
 
   let homeTeamName = await homeTeam.textContent();
   let awayTeamName = await awayTeam.textContent();
@@ -139,8 +145,11 @@ const parseMatchDataFromDetail = async (page) => {
 
     outcome_odds: outcomeOdds,
     first_half_outcome_odds: firstHalfOutcomeOdds,
+    second_half_outcome_odds: secondHalfOutcomeOdds,
     total_odds: totalOdds,
+    first_half_total_odds: firstHalfTotalOdds,
     handicap_odds: handicapOdds,
+    first_half_handicap_odds: firstHalfHandicapOdds,
   };
 
   return matchData;

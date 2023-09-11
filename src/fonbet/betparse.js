@@ -8,7 +8,6 @@ export async function findOddsItemByName(page, name) {
 }
 
 export async function parseTotalOdds(page) {
-  // spaces have to be there to not clash with other bets that have "Total Goals" in their name
   let totalItem = await findOddsItemByName(page, "Total goals");
   totalItem = totalItem.first();
 
@@ -19,6 +18,24 @@ export async function parseTotalOdds(page) {
     return [];
   }
 
+  return parseTotalsData(totalItem);
+}
+
+export async function parseFirstHalfTotalOdds(page) {
+  let totalItem = await findOddsItemByName(page, "Total goals in 1st half");
+  totalItem = totalItem.first();
+
+  try {
+    await totalItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("Total odds not found");
+    return [];
+  }
+
+  return parseTotalsData(totalItem);
+}
+
+export async function parseTotalsData(totalItem) {
   let totalOdds = [];
 
   const rows = totalItem.locator(
@@ -32,12 +49,16 @@ export async function parseTotalOdds(page) {
       `xpath=.//div[contains(@class, 'cell-wrap') and not(contains(@class, 'separator'))]`
     );
 
-    let totalLeft = await totalBets.nth(0).textContent({timeout: 500});
+    let totalLeft = await totalBets.nth(0).textContent({ timeout: 500 });
     // get only the number, excluding extra text
     totalLeft = totalLeft.replace(/[^0-9.]/g, "");
 
-    let totalLeftOverValue = await totalBets.nth(1).textContent({timeout: 500});
-    let totalLeftUnderValue = await totalBets.nth(2).textContent({timeout: 500});
+    let totalLeftOverValue = await totalBets
+      .nth(1)
+      .textContent({ timeout: 500 });
+    let totalLeftUnderValue = await totalBets
+      .nth(2)
+      .textContent({ timeout: 500 });
 
     // if total is empty - skip it
     if (totalLeft) {
@@ -48,12 +69,16 @@ export async function parseTotalOdds(page) {
       });
     }
 
-    let totalRight = await totalBets.nth(3).textContent({timeout: 500});
+    let totalRight = await totalBets.nth(3).textContent({ timeout: 500 });
     // get only the number, excluding extra text
     totalRight = totalRight.replace(/[^0-9.]/g, "");
 
-    let totalRightOverValue = await totalBets.nth(4).textContent({timeout: 500});
-    let totalRightUnderValue = await totalBets.nth(5).textContent({timeout: 500});
+    let totalRightOverValue = await totalBets
+      .nth(4)
+      .textContent({ timeout: 500 });
+    let totalRightUnderValue = await totalBets
+      .nth(5)
+      .textContent({ timeout: 500 });
 
     if (totalRight) {
       totalOdds.push({
@@ -67,8 +92,21 @@ export async function parseTotalOdds(page) {
   return totalOdds;
 }
 
+export async function parseFirstHalfHandicapOdds(page) {
+  let betItem = await findOddsItemByName(page, "Handicap in 1st half");
+  betItem = betItem.first();
+
+  try {
+    await betItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("Total odds not found");
+    return [];
+  }
+
+  return parseHandicapsData(betItem);
+}
+
 export async function parseHandicapOdds(page) {
-  // spaces have to be there to not clash with other bets that have "Total Goals" in their name
   let betItem = await findOddsItemByName(page, "Handicap");
   betItem = betItem.first();
 
@@ -79,6 +117,10 @@ export async function parseHandicapOdds(page) {
     return [];
   }
 
+  return parseHandicapsData(betItem);
+}
+
+export async function parseHandicapsData(betItem) {
   let data = [];
 
   const homeHandicapBets = betItem.locator(
@@ -103,7 +145,7 @@ export async function parseHandicapOdds(page) {
     data.push({
       handicap: betLabel,
       coef: coefValue,
-      type: "home"
+      type: "home",
     });
   }
 
@@ -129,7 +171,7 @@ export async function parseHandicapOdds(page) {
     data.push({
       handicap: betLabel,
       coef: coefValue,
-      type: "away"
+      type: "away",
     });
   }
 
@@ -147,6 +189,31 @@ export async function parseFirstHalfOutcomeOdds(page) {
     return [];
   }
 
+  return parseOutcomesData(betItem);
+}
+
+export async function parseSecondHalfOutcomeOdds(page) {
+  let betItem = await findOddsItemByName(page, "Result in 2nd half");
+  betItem = betItem.first();
+
+  try {
+    await betItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("Total odds not found");
+    return [];
+  }
+
+  return parseOutcomesData(betItem);
+}
+
+export async function parseOutcomeOdds(page) {
+  let oddsSection = await findOddsItemByName(page, "Result");
+  oddsSection = oddsSection.first();
+
+  return parseOutcomesData(oddsSection);
+}
+
+export async function parseOutcomesData(betItem) {
   const bets = betItem.locator(
     "xpath=.//div[contains(@class, 'cell-wrap')]//div[contains(@class, 'value-state-normal')]"
   );
@@ -157,30 +224,6 @@ export async function parseFirstHalfOutcomeOdds(page) {
       home_team: await bets.nth(0).textContent(),
       draw: await bets.nth(1).textContent(),
       away_team: await bets.nth(2).textContent(),
-    };
-  } catch (error) {
-    if (error instanceof playwright.errors.TimeoutError) {
-      console.log(`Caught timeout on odds. No odds for this event`);
-    }
-  }
-
-  return data;
-}
-
-export async function parseOutcomeOdds(page) {
-  let oddsSection = await findOddsItemByName(page, "Result");
-  oddsSection = oddsSection.first();
-
-  const oddsElems = oddsSection.locator(
-    "xpath=.//div[contains(@class, 'cell-wrap')]//div[contains(@class, 'value-state-normal')]"
-  );
-
-  let data;
-  try {
-    data = {
-      home_team: await oddsElems.nth(0).textContent(),
-      draw: await oddsElems.nth(1).textContent(),
-      away_team: await oddsElems.nth(2).textContent(),
     };
   } catch (error) {
     if (error instanceof playwright.errors.TimeoutError) {

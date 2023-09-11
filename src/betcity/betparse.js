@@ -25,6 +25,10 @@ export async function parseTotalOdds(page) {
     }
   }
 
+  return parseTotalsData(totalItem);
+}
+
+export async function parseTotalsData(totalItem) {
   const totalBets = totalItem.locator("css=.dops-item-row__section");
 
   let totalOdds = [];
@@ -64,6 +68,81 @@ export async function parseTotalOdds(page) {
   return totalOdds;
 }
 
+export async function parseFirstHalfTotalOdds(page) {
+  let betItem = await findOddsItemByName(page, "Halves result");
+  betItem = betItem.first();
+
+  try {
+    await betItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("First half outcome odds not found");
+    return [];
+  }
+
+  const outcomeItem = betItem.locator(
+    "xpath=./div[contains(@class, 'dops-item-row')][1]//div[@class='dops-item-row__wrapper']"
+  );
+
+  return parseHalfTotalsData(outcomeItem);
+}
+
+async function parseHalfTotalsData(halfItem) {
+  const underBets = halfItem.locator(
+    "xpath=//div[@class='dops-item-row__block-content']//span[contains(., 'Under')]/.."
+  );
+
+  const overBets = halfItem.locator(
+    "xpath=//div[@class='dops-item-row__block-content']//span[contains(., 'Over')]/.."
+  );
+
+  let totalsData = {};
+
+  const overBetsCount = await overBets.count();
+  for (let i = 0; i < overBetsCount; i++) {
+    let overBet = overBets.nth(i);
+    let total, value;
+    try {
+      total = await overBet
+        .locator("xpath=/span")
+        .textContent({ timeout: 100 });
+      value = await overBet
+        .locator("xpath=/button")
+        .textContent({ timeout: 100 });
+    } catch (e) {}
+
+    if (total) {
+      total = total.replace(/[^0-9.]/g, "");
+      totalsData[total] = {
+        total_over: value,
+      };
+    }
+  }
+
+  const underBetsCount = await underBets.count();
+  for (let i = 0; i < underBetsCount; i++) {
+    let underBet = underBets.nth(i);
+    let total, value;
+    try {
+      total = await underBet
+        .locator("xpath=/span")
+        .textContent({ timeout: 100 });
+      value = await underBet
+        .locator("xpath=/button")
+        .textContent({ timeout: 100 });
+    } catch (e) {}
+
+    if (total) {
+      total = total.replace(/[^0-9.]/g, "");
+      totalsData[total] = {
+        total_under: value,
+        ...totalsData[total],
+      };
+    }
+  }
+
+  return totalsData;
+}
+
 export async function parseHandicapOdds(page) {
   let betItem = await findOddsItemByName(page, "Handicap");
   betItem = betItem.first();
@@ -75,6 +154,24 @@ export async function parseHandicapOdds(page) {
     return [];
   }
 
+  return parseHandicapsData(betItem);
+}
+
+export async function parseFirstHalfHandicapOdds(page) {
+  let betItem = await findOddsItemByName(page, "Handicap 1st half");
+  betItem = betItem.first();
+
+  try {
+    await betItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("Handicap odds not found");
+    return [];
+  }
+
+  return parseHandicapsData(betItem);
+}
+
+export async function parseHandicapsData(betItem) {
   const bets = betItem.locator(
     "xpath=.//div[contains(@class, 'dops-item-row__section')]//div[contains(@class, 'dops-item-row__block-content')]"
   );
@@ -95,10 +192,8 @@ export async function parseHandicapOdds(page) {
     let handicap = handicapString.match(/\(([^)]+)\)/)[1];
 
     let type;
-    if (handicapString.includes("Han1"))
-      type = "home"
-    else if (handicapString.includes("Han2"))
-      type = "away"
+    if (handicapString.includes("Han1")) type = "home";
+    else if (handicapString.includes("Han2")) type = "away";
 
     data.push({
       handicap: handicap,
@@ -137,11 +232,32 @@ export async function parseFirstHalfOutcomeOdds(page) {
     return [];
   }
 
-  // first half outcome item
   const outcomeItem = betItem.locator(
     "xpath=./div[contains(@class, 'dops-item-row')][1]//div[@class='dops-item-row__section'][1]"
   );
 
+  return parseHalfOutcomesData(outcomeItem);
+}
+
+export async function parseSecondHalfOutcomeOdds(page) {
+  let betItem = await findOddsItemByName(page, "Halves result");
+  betItem = betItem.first();
+
+  try {
+    await betItem.waitFor({ state: "visible", timeout: 300 });
+  } catch (e) {
+    log.info("Second half outcome odds not found");
+    return [];
+  }
+
+  const outcomeItem = betItem.locator(
+    "xpath=./div[contains(@class, 'dops-item-row')][2]//div[@class='dops-item-row__section'][1]"
+  );
+
+  return parseHalfOutcomesData(outcomeItem);
+}
+
+export async function parseHalfOutcomesData(outcomeItem) {
   let data = {
     home_team: await outcomeItem
       .locator("css=.dops-item-row__block:nth-of-type(1) button")

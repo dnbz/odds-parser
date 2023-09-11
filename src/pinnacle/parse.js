@@ -1,10 +1,10 @@
 import playwright from "playwright";
 import { processMatchData } from "./transform.js";
 import {
-  findOddsItemByName,
-  parseFirstHalfOutcomeOdds,
+  findOddsItemByName, parseFirstHalfHandicapOdds,
+  parseFirstHalfOutcomeOdds, parseFirstHalfTotalOdds,
   parseHandicapOdds,
-  parseOutcomeOdds,
+  parseOutcomeOdds, parseSecondHalfOutcomeOdds,
   parseTotalOdds,
 } from "./betparse.js";
 
@@ -143,8 +143,13 @@ const parseMatchDataFromDetail = async (page, date) => {
 
   const outcomeOdds = await parseOutcomeOdds(page);
   const firstHalfOutcomeOdds = await parseFirstHalfOutcomeOdds(page);
+  // temporarily disabled since there are no second half odds on the website rn
+  // const secondHalfOutcomeOdds = await parseSecondHalfOutcomeOdds(page);
+  const secondHalfOutcomeOdds = [];
   const totalOdds = await parseTotalOdds(page);
+  const firstHalfTotalOdds = await parseFirstHalfTotalOdds(page);
   const handicapOdds = await parseHandicapOdds(page);
+  const firstHalfHandicapOdds = await parseFirstHalfHandicapOdds(page);
 
   const oddsElems = page.locator(
     "xpath=.//span[contains(@class, 'style_price')]"
@@ -160,8 +165,11 @@ const parseMatchDataFromDetail = async (page, date) => {
 
     outcome_odds: outcomeOdds,
     first_half_outcome_odds: firstHalfOutcomeOdds,
+    second_half_outcome_odds: secondHalfOutcomeOdds,
     total_odds: totalOdds,
+    first_half_total_odds: firstHalfTotalOdds,
     handicap_odds: handicapOdds,
+    first_half_handicap_odds: firstHalfHandicapOdds,
   };
 
   return match_data;
