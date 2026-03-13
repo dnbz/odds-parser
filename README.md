@@ -1,4 +1,4 @@
-# Betcity parser
+# Odds Parser
 `docker-compose` is used to deploy this project.
 
 Before that you need to copy `./.env.prod` with correct setup.
